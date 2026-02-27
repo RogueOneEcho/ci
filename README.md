@@ -23,9 +23,33 @@ ci-on-pr-labeled.yml  ──┘
 
 CI for Rust library crates
 
+Used by:
+
+- [flat_db](https://github.com/RogueOneEcho/flat_db)
+- [gazelle_api](https://github.com/RogueOneEcho/gazelle_api)
+- [logging](https://github.com/RogueOneEcho/logging)
+
 Examples:
 
 - [`minimal.yml`](examples/rust-lib/minimal.yml) — Default usage
 - [`with-config.yml`](examples/rust-lib/with-config.yml) — Write a config file before tests
 - [`no-publish.yml`](examples/rust-lib/no-publish.yml) — Skip crates.io publish
 - [`workspace.yml`](examples/rust-lib/workspace.yml) — Workspace with multiple manifests
+
+## Rulesets
+
+### [`main.json`](rulesets/main.json)
+
+Branch protection ruleset for `main`. Apply to a repo with:
+
+```sh
+gh api repos/RogueOneEcho/{repo}/rulesets -X POST --input rulesets/main.json
+```
+
+### [`release.json`](rulesets/release.json)
+
+Branch protection ruleset for `release`. No bypass — requires CI and git-tag to pass (from `main`) before pushing. Apply to a repo with:
+
+```sh
+gh api repos/RogueOneEcho/{repo}/rulesets -X POST --input rulesets/release.json
+```
