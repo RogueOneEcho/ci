@@ -1,0 +1,31 @@
+# CI
+
+Shared GitHub Actions workflows for [RogueOneEcho](https://github.com/RogueOneEcho) projects.
+
+## Calling Convention
+
+Each consuming repo has four workflow files. The three trigger files call the local `ci.yml`, which in turn calls the shared workflow. This keeps repo-specific inputs (e.g. `config-path`) in one place.
+
+- [`ci.yml`](examples/ci/ci.yml) — Local wrapper that calls the shared workflow with repo-specific inputs
+- [`ci-on-push.yml`](examples/ci/ci-on-push.yml) — Runs CI on every push. Keeps the actions cache warm on `main`
+- [`ci-on-pr-approved.yml`](examples/ci/ci-on-pr-approved.yml) — Runs CI when a PR is approved. Gates auto-merge via branch protection
+- [`ci-on-pr-labeled.yml`](examples/ci/ci-on-pr-labeled.yml) — Runs CI on demand without approving. Removes the label after
+
+```
+ci-on-push.yml        ──┐
+ci-on-pr-approved.yml ──┼──▶ ci.yml ──▶ RogueOneEcho/ci/rust-lib.yml@v1
+ci-on-pr-labeled.yml  ──┘
+```
+
+## Workflows
+
+### [`rust-lib.yml`](.github/workflows/rust-lib.yml)
+
+CI for Rust library crates
+
+Examples:
+
+- [`minimal.yml`](examples/rust-lib/minimal.yml) — Default usage
+- [`with-config.yml`](examples/rust-lib/with-config.yml) — Write a config file before tests
+- [`no-publish.yml`](examples/rust-lib/no-publish.yml) — Skip crates.io publish
+- [`workspace.yml`](examples/rust-lib/workspace.yml) — Workspace with multiple manifests

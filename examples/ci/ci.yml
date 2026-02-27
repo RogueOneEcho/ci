@@ -1,0 +1,6 @@
+name: CI
+on: workflow_call
+jobs:
+  ci:
+    uses: RogueOneEcho/ci/.github/workflows/rust-lib.yml@v1
+    secrets: inherit

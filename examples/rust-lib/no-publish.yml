@@ -1,0 +1,12 @@
+# Skip publishing to crates.io.
+# Useful for internal crates that are not published.
+name: CI
+on: workflow_call
+jobs:
+  ci:
+    uses: RogueOneEcho/ci/.github/workflows/rust-lib.yml@v1
+    secrets:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      RELEASE_SCRIPT: ${{ secrets.RELEASE_SCRIPT }}
+    with:
+      publish: false
