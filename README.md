@@ -36,6 +36,15 @@ Examples:
 - [`no-publish.yml`](examples/rust-lib/no-publish.yml) — Skip crates.io publish
 - [`workspace.yml`](examples/rust-lib/workspace.yml) — Workspace with multiple manifests
 
+### [`fast-forward-release.yml`](.github/workflows/fast-forward-release.yml)
+
+Fast-forward the `release` branch to a tagged commit on `main`. Validates the commit is on `main`, checks CI status, and pushes.
+
+Examples:
+
+- [`release.yml`](examples/release/release.yml) — Local wrapper
+- [`release-dispatch.yml`](examples/release/release-dispatch.yml) — Manual dispatch trigger
+
 ## Rulesets
 
 ### [`main.json`](rulesets/main.json)

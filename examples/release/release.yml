@@ -1,0 +1,15 @@
+name: Release
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    uses: RogueOneEcho/ci/.github/workflows/fast-forward-release.yml@v1
+    with:
+      ref: ${{ inputs.ref }}
