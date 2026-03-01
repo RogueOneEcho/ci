@@ -36,6 +36,23 @@ Examples:
 - [`no-publish.yml`](examples/rust-lib/no-publish.yml) — Skip crates.io publish
 - [`workspace.yml`](examples/rust-lib/workspace.yml) — Workspace with multiple manifests
 
+### [`rust-bin.yml`](.github/workflows/rust-bin.yml)
+
+CI for Rust binary crates with optional Docker builds.
+
+Used by:
+
+- [caesura](https://github.com/RogueOneEcho/caesura)
+- [coda](https://github.com/RogueOneEcho/coda)
+- [pura](https://github.com/RogueOneEcho/pura)
+- [tremolo](https://github.com/RogueOneEcho/tremolo)
+
+Examples:
+
+- [`minimal.yml`](examples/rust-bin/minimal.yml) — Single-target binary with Docker
+- [`cross-platform.yml`](examples/rust-bin/cross-platform.yml) — Multi-target matrix with Docker
+- [`with-extra-jobs.yml`](examples/rust-bin/with-extra-jobs.yml) — Using version output for post-CI jobs
+
 ### [`fast-forward-release.yml`](.github/workflows/fast-forward-release.yml)
 
 Fast-forward the `release` branch to a tagged commit on `main`. Validates the commit is on `main`, checks CI status, and pushes.

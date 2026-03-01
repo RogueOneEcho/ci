@@ -1,0 +1,12 @@
+# Single-target binary with Docker.
+# Builds for x86_64-unknown-linux-gnu and pushes to GHCR.
+name: CI
+on: workflow_call
+jobs:
+  ci:
+    uses: RogueOneEcho/ci/.github/workflows/rust-bin.yml@v1
+    secrets: inherit
+    with:
+      binary-name: myapp
+      docker-image: rogueoneecho/myapp
+      config-path: config.yml

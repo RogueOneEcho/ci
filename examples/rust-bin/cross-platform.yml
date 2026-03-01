@@ -1,0 +1,19 @@
+# Cross-platform binary with Docker.
+# Builds for multiple targets and uploads platform-specific artifacts.
+name: CI
+on: workflow_call
+jobs:
+  ci:
+    uses: RogueOneEcho/ci/.github/workflows/rust-bin.yml@v1
+    secrets: inherit
+    with:
+      binary-name: myapp
+      docker-image: rogueoneecho/myapp
+      config-path: config.yml
+      targets: |
+        [
+          {"os":"ubuntu-24.04","target":"x86_64-unknown-linux-gnu","test":true},
+          {"os":"ubuntu-24.04","target":"x86_64-unknown-linux-musl"},
+          {"os":"macos-13","target":"x86_64-apple-darwin"},
+          {"os":"macos-14","target":"aarch64-apple-darwin"}
+        ]
