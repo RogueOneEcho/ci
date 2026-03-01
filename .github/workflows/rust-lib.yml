@@ -151,6 +151,27 @@ jobs:
 
     - run: cargo build --release --locked --all-features --tests
 
+    - name: Run cargo check
+      run: |
+        if ! cargo check --quiet --locked --all-targets --all-features --message-format short
+        then
+          echo "::warning title=Cargo Check Failed::Please review the output for details."
+        fi
+
+    - name: Run cargo clippy
+      run: |
+        if ! cargo clippy --quiet --locked --all-targets --all-features --message-format short
+        then
+          echo "::warning title=Clippy Check Failed::Please review the output for details."
+        fi
+
+    - name: Run cargo fmt
+      run: |
+        if ! cargo fmt --check
+        then
+          echo "::warning title=Format Check Failed::Please review the output for details."
+        fi
+
     - name: Clean cargo cache
       if: github.ref_name == 'main'
       run: rm -rf target/*/release/incremental
@@ -185,27 +206,6 @@ jobs:
         EOF
 
     - run: cargo test --release --locked --no-fail-fast --all-features
-
-    - name: Run cargo check
-      run: |
-        if ! cargo check --quiet --locked --all-targets --all-features --message-format short
-        then
-          echo "::warning title=Cargo Check Failed::Please review the output for details."
-        fi
-
-    - name: Run cargo clippy
-      run: |
-        if ! cargo clippy --quiet --locked --all-targets --all-features --message-format short
-        then
-          echo "::warning title=Clippy Check Failed::Please review the output for details."
-        fi
-
-    - name: Run cargo fmt
-      run: |
-        if ! cargo fmt --check
-        then
-          echo "::warning title=Format Check Failed::Please review the output for details."
-        fi
 
     - run: git --no-pager diff --color
 

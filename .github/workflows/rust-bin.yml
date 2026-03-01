@@ -232,9 +232,29 @@ jobs:
     - if: matrix.test
       run: cargo build --release --locked --target ${{ matrix.target }} --tests
 
-    - run: brew install cargo-auditable
+    - name: Run cargo check
+      if: matrix.target == 'x86_64-unknown-linux-gnu'
+      run: |
+        if ! cargo check --quiet --locked --all-targets --message-format short
+        then
+          echo "::warning title=Cargo Check Failed::Please review the output for details."
+        fi
 
-    - run: cargo auditable build --release --locked --target ${{ matrix.target }} --bins
+    - name: Run cargo clippy
+      if: matrix.target == 'x86_64-unknown-linux-gnu'
+      run: |
+        if ! cargo clippy --quiet --locked --all-targets --message-format short
+        then
+          echo "::warning title=Clippy Check Failed::Please review the output for details."
+        fi
+
+    - name: Run cargo fmt
+      if: matrix.target == 'x86_64-unknown-linux-gnu'
+      run: |
+        if ! cargo fmt --check
+        then
+          echo "::warning title=Format Check Failed::Please review the output for details."
+        fi
 
     - name: Clean cargo cache
       if: github.ref_name == 'main'
@@ -262,21 +282,6 @@ jobs:
           ~/.cargo/git/db/
           target/
 
-    - run: mkdir artifacts
-
-    - name: Package binary as tar.xz
-      run: |
-        cp target/${{ matrix.target }}/release/${{ inputs.binary-name }} artifacts/${{ inputs.binary-name }}
-        tar -cJf artifacts/${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.tar.xz \
-          -C artifacts ${{ inputs.binary-name }}
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}
-        path: artifacts/${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.tar.xz
-
-    - run: rm -rf artifacts
-
     - name: Pre-test setup
       if: matrix.test && inputs.pre-test != ''
       run: ${{ inputs.pre-test }}
@@ -301,29 +306,24 @@ jobs:
       env:
         TARGET: ${{ matrix.target }}
 
-    - name: Run cargo check
-      if: matrix.target == 'x86_64-unknown-linux-gnu'
-      run: |
-        if ! cargo check --quiet --locked --all-targets --message-format short
-        then
-          echo "::warning title=Cargo Check Failed::Please review the output for details."
-        fi
+    - run: brew install cargo-auditable
 
-    - name: Run cargo clippy
-      if: matrix.target == 'x86_64-unknown-linux-gnu'
-      run: |
-        if ! cargo clippy --quiet --locked --all-targets --message-format short
-        then
-          echo "::warning title=Clippy Check Failed::Please review the output for details."
-        fi
+    - run: cargo auditable build --release --locked --target ${{ matrix.target }} --bins
 
-    - name: Run cargo fmt
-      if: matrix.target == 'x86_64-unknown-linux-gnu'
+    - run: mkdir artifacts
+
+    - name: Package binary as tar.xz
       run: |
-        if ! cargo fmt --check
-        then
-          echo "::warning title=Format Check Failed::Please review the output for details."
-        fi
+        cp target/${{ matrix.target }}/release/${{ inputs.binary-name }} artifacts/${{ inputs.binary-name }}
+        tar -cJf artifacts/${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.tar.xz \
+          -C artifacts ${{ inputs.binary-name }}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}
+        path: artifacts/${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.tar.xz
+
+    - run: rm -rf artifacts
 
     - if: matrix.target == 'x86_64-unknown-linux-gnu'
       run: brew install cargo-audit
