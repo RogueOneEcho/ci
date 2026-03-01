@@ -124,9 +124,13 @@ defaults:
   run:
     shell: bash
 env:
+  # Force colored cargo output in CI logs
   CARGO_TERM_COLOR: always
+  # Allow pkg-config to find native libraries when cross-compiling
+  PKG_CONFIG_ALLOW_CROSS: 1
 jobs:
 
+  # Determine version, update manifests and upload as artifact
   release:
     runs-on: ubuntu-24.04
     outputs:
@@ -169,6 +173,18 @@ jobs:
         name: cargo-manifests
         path: ${{ inputs.cargo-manifests }}
 
+  # Build, test and package
+  #
+  # Build strategy:
+  # - Plain cargo build compiles all deps, bins and tests
+  # - cargo auditable build recompiles only workspace bins (deps reused via RUSTC_WORKSPACE_WRAPPER)
+  # - Tests use plain cargo test to reuse artifacts from the plain build
+  #
+  # Cache strategy:
+  # - Restored every run with key cargo-<target>-<run_number>, falling back to any cargo-<target>- prefix
+  # - Saved only on main branch
+  # - Incremental build artifacts are removed
+  # - Stale caches are deleted via gh cache delete
   cargo-build:
     runs-on: ${{ matrix.os }}
     needs:
@@ -211,11 +227,14 @@ jobs:
 
     - run: rustup target add ${{ matrix.target }}
 
+    - run: cargo build --release --locked --target ${{ matrix.target }} --bins
+
+    - if: matrix.test
+      run: cargo build --release --locked --target ${{ matrix.target }} --tests
+
     - run: brew install cargo-auditable
 
-    - run: cargo auditable build --release --locked --target ${{ matrix.target }} --bins ${{ matrix.test && '--tests' || '' }}
-      env:
-        PKG_CONFIG_ALLOW_CROSS: 1
+    - run: cargo auditable build --release --locked --target ${{ matrix.target }} --bins
 
     - name: Clean cargo cache
       if: github.ref_name == 'main'
@@ -272,7 +291,7 @@ jobs:
         EOF
 
     - if: matrix.test
-      run: cargo auditable test --release --locked --no-fail-fast --target ${{ matrix.target }}
+      run: cargo test --release --locked --no-fail-fast --target ${{ matrix.target }}
       env:
         CLICOLOR_FORCE: 1
 
@@ -319,6 +338,9 @@ jobs:
 
     - run: git --no-pager diff --color
 
+  # Publish to crates.io
+  #
+  # Runs when: cargo-publish is true, version is set, and version is stable (no hyphen)
   cargo-publish:
     runs-on: ubuntu-24.04
     if: inputs.cargo-publish && needs.release.outputs.version != '' && contains(needs.release.outputs.version, '-') == false
@@ -339,6 +361,9 @@ jobs:
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+  # Tag prereleases
+  #
+  # Runs when: version is set and version is a prerelease (contains hyphen)
   git-tag:
     runs-on: ubuntu-24.04
     if: needs.release.outputs.version != '' && contains(needs.release.outputs.version, '-')
@@ -363,6 +388,9 @@ jobs:
     - name: git push
       run: git push origin "v${{ needs.release.outputs.version }}"
 
+  # Create GitHub release and upload binary artifacts
+  #
+  # Runs when: version is set and version is stable (no hyphen)
   github-release:
     runs-on: ubuntu-24.04
     if: needs.release.outputs.version != '' && contains(needs.release.outputs.version, '-') == false
@@ -402,6 +430,9 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
 
+  # Build and push multi-arch Docker images to GHCR
+  #
+  # Runs when: docker-image is set and version is set
   docker-build:
     runs-on: ${{ matrix.os }}
     if: inputs.docker-image != '' && needs.release.outputs.version != ''
@@ -463,6 +494,9 @@ jobs:
         path: /tmp/.buildx-cache
         key: ${{ steps.cache-buildx.outputs.cache-primary-key }}
 
+  # Generate SBOM, scan for vulnerabilities and attest with cosign
+  #
+  # Runs when: docker-image is set and version is set
   docker-scan:
     runs-on: ubuntu-24.04
     if: inputs.docker-image != '' && needs.release.outputs.version != ''
@@ -538,6 +572,9 @@ jobs:
         name: sbom-${{ matrix.arch }}
         path: merged-sbom.cdx.json
 
+  # Create multi-arch manifest and tag as alpha/latest
+  #
+  # Runs when: docker-image is set and version is set
   docker-release:
     runs-on: ubuntu-24.04
     if: inputs.docker-image != '' && needs.release.outputs.version != ''

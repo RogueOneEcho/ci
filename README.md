@@ -43,9 +43,6 @@ CI for Rust binary crates with optional Docker builds.
 Used by:
 
 - [caesura](https://github.com/RogueOneEcho/caesura)
-- [coda](https://github.com/RogueOneEcho/coda)
-- [pura](https://github.com/RogueOneEcho/pura)
-- [tremolo](https://github.com/RogueOneEcho/tremolo)
 
 Examples:
 
