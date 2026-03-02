@@ -1,0 +1,315 @@
+name: Docker CI
+on:
+  workflow_call:
+
+    inputs:
+      docker-image:
+        type: string
+        required: true
+        description: Image name for GHCR (e.g. rogueoneecho/caddy-cloudflare).
+      build-context:
+        type: string
+        default: '.'
+        description: Path to Docker build context.
+      sbom:
+        type: string
+        default: ''
+        description: |
+          Path to a source-deps CycloneDX SBOM to merge with the container SBOM.
+
+          - If empty (default), only the container SBOM is used
+
+    secrets:
+      RELEASE_TOKEN:
+        required: true
+        description: GitHub token for release detection.
+      RELEASE_SCRIPT:
+        required: true
+        description: |
+          Script that determines the version and writes release notes to /tmp/release-notes.md.
+
+          - Must set the output: version
+      GIT_CONFIG:
+        required: false
+        description: |
+          Git config commands run before git tag to configure signing.
+
+          - If unset, a lightweight unsigned tag is created
+
+    outputs:
+      version:
+        value: ${{ jobs.release.outputs.version }}
+        description: The resolved version string.
+
+defaults:
+  run:
+    shell: bash
+jobs:
+
+  # Determine version and upload release notes
+  release:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - id: release
+      if: github.event_name == 'push'
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      run: ${{ secrets.RELEASE_SCRIPT }}
+
+    - if: github.event_name != 'push'
+      run: touch /tmp/release-notes.md
+
+    - run: echo "# ${{ steps.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+
+    - run: cat /tmp/release-notes.md >> $GITHUB_STEP_SUMMARY
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: release-notes.md
+        path: /tmp/release-notes.md
+
+  # Build and push multi-arch Docker images to GHCR
+  #
+  # Cache strategy:
+  # - Restored every run with key buildx-<arch>-<run_number>, falling back to any buildx-<arch>- prefix
+  # - Saved only on main branch
+  # - Stale caches are deleted via gh cache delete
+  #
+  # Runs when: version is set
+  docker-build:
+    runs-on: ${{ matrix.os }}
+    if: needs.release.outputs.version != ''
+    needs:
+    - release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: ubuntu-24.04
+          arch: amd64
+        - os: ubuntu-24.04-arm
+          arch: arm64
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - name: Restore buildx cache
+      id: cache-buildx
+      uses: actions/cache/restore@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: buildx-${{ matrix.arch }}-${{ github.run_number }}
+        restore-keys: buildx-${{ matrix.arch }}-
+
+    - run: echo $GH_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - run: docker buildx create --use
+
+    - run: >
+        docker buildx build ${{ inputs.build-context }}
+        --build-arg VERSION=${{ needs.release.outputs.version }}
+        --tag ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}-${{ matrix.arch }}
+        --cache-from=type=local,src=/tmp/.buildx-cache
+        --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max
+        --push
+
+    # https://github.com/docker/build-push-action/issues/252
+    # https://github.com/moby/buildkit/issues/1896
+    - run: rm -rf /tmp/.buildx-cache
+    - run: mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+    - name: Delete stale buildx caches
+      if: github.ref_name == 'main'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh cache list --key buildx-${{ matrix.arch }}- --json key --jq '.[].key' -R ${{ github.repository }} |
+        while read -r key; do
+          gh cache delete "$key" -R ${{ github.repository }}
+        done
+
+    - name: Save buildx cache
+      if: github.ref_name == 'main'
+      uses: actions/cache/save@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ steps.cache-buildx.outputs.cache-primary-key }}
+
+  # Generate SBOM, scan for vulnerabilities and attest with cosign
+  #
+  # Runs when: version is set
+  docker-scan:
+    runs-on: ubuntu-24.04
+    if: needs.release.outputs.version != ''
+    needs:
+    - release
+    - docker-build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - arch: amd64
+        - arch: arm64
+    env:
+      IMAGE: ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}-${{ matrix.arch }}
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - run: echo $GH_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - run: echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+
+    - run: /home/linuxbrew/.linuxbrew/bin/brew install syft grype cosign CycloneDX/cyclonedx/cyclonedx-cli
+
+    - name: Generate SBOM
+      run: >
+        syft ${{ env.IMAGE }}
+        --platform linux/${{ matrix.arch }}
+        --output cyclonedx-json=syft-sbom.cdx.json
+
+    - name: Merge SBOMs
+      if: inputs.sbom != ''
+      run: >
+        cyclonedx merge
+        --input-files syft-sbom.cdx.json ${{ inputs.sbom }}
+        --output-file merged-sbom.cdx.json
+        --input-format json
+        --output-format json
+        --output-version v1_6
+
+    - name: Use container SBOM
+      if: inputs.sbom == ''
+      run: cp syft-sbom.cdx.json merged-sbom.cdx.json
+
+    - name: Vulnerability scan
+      run: >
+        grype sbom:merged-sbom.cdx.json
+        --output table
+        --fail-on critical
+
+    - name: Get image digest
+      id: digest
+      run: |
+        DIGEST=$(docker buildx imagetools inspect "${{ env.IMAGE }}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+        echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+    - name: Attest SBOM
+      run: >
+        cosign attest
+        --predicate merged-sbom.cdx.json
+        --type cyclonedx
+        --yes
+        ghcr.io/${{ inputs.docker-image }}@${{ steps.digest.outputs.digest }}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: sbom-${{ matrix.arch }}
+        path: merged-sbom.cdx.json
+
+  # Create multi-arch manifest and tag as alpha/latest
+  #
+  # Runs when: version is set
+  docker-release:
+    runs-on: ubuntu-24.04
+    if: needs.release.outputs.version != ''
+    needs:
+    - release
+    - docker-build
+    - docker-scan
+    steps:
+
+    - run: echo $GH_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create version manifest
+      run: >
+        docker buildx imagetools create
+        --tag ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}
+        ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}-amd64
+        ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}-arm64
+
+    - name: Tag alpha manifest
+      if: github.ref_name == 'main'
+      run: >
+        docker buildx imagetools create
+        --tag ghcr.io/${{ inputs.docker-image }}:alpha
+        ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}
+
+    - name: Tag latest manifest
+      if: contains(needs.release.outputs.version, '-') == false
+      run: >
+        docker buildx imagetools create
+        --tag ghcr.io/${{ inputs.docker-image }}:latest
+        ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}
+
+  # Tag prereleases
+  #
+  # Runs when: version is set and version is a prerelease (contains hyphen)
+  git-tag:
+    runs-on: ubuntu-24.04
+    if: needs.release.outputs.version != '' && contains(needs.release.outputs.version, '-')
+    needs:
+    - release
+    - docker-release
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: git config
+      run: ${{ secrets.GIT_CONFIG || 'true' }}
+
+    - run: git config --list
+
+    - name: git tag
+      run: git tag "v${{ needs.release.outputs.version }}"
+
+    - name: git push
+      run: git push origin "v${{ needs.release.outputs.version }}"
+
+  # Create GitHub release
+  #
+  # Runs when: version is set and version is stable (no hyphen)
+  github-release:
+    runs-on: ubuntu-24.04
+    if: needs.release.outputs.version != '' && contains(needs.release.outputs.version, '-') == false
+    needs:
+    - release
+    - docker-release
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: release-notes.md
+
+    - name: gh release create
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: >
+        gh release create
+        "v${{ needs.release.outputs.version }}"
+        --title "v${{ needs.release.outputs.version }}"
+        --notes-file release-notes.md
+        --target ${{ github.ref_name }}

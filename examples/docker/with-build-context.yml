@@ -1,0 +1,19 @@
+# Docker image with a custom build context.
+# Use when the Dockerfile is in a subdirectory.
+name: On Push
+on: push
+permissions:
+  actions: write
+  contents: write
+  packages: write
+  id-token: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ci:
+    uses: RogueOneEcho/ci/.github/workflows/docker.yml@v1
+    with:
+      docker-image: rogueoneecho/myapp
+      build-context: src
+    secrets: inherit

@@ -36,6 +36,21 @@ Examples:
 - [`no-publish.yml`](examples/rust-lib/no-publish.yml) — Skip crates.io publish
 - [`workspace.yml`](examples/rust-lib/workspace.yml) — Workspace with multiple manifests
 
+### [`docker.yml`](.github/workflows/docker.yml)
+
+CI for Docker-only projects. Multi-arch builds (amd64/arm64), SBOM scanning, cosign attestation, and GHCR publishing.
+
+Used by:
+
+- [caddy-cloudflare](https://github.com/RogueOneEcho/caddy-cloudflare)
+- [backup](https://github.com/RogueOneEcho/backup)
+- [preflight](https://github.com/RogueOneEcho/preflight)
+
+Examples:
+
+- [`minimal.yml`](examples/docker/minimal.yml) — Default build context
+- [`with-build-context.yml`](examples/docker/with-build-context.yml) — Custom build context subdirectory
+
 ### [`rust-bin.yml`](.github/workflows/rust-bin.yml)
 
 CI for Rust binary crates with optional Docker builds.
