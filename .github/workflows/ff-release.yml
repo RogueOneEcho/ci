@@ -10,6 +10,9 @@ on:
       pushed:
         value: ${{ jobs.fast-forward.outputs.pushed }}
         description: Whether the fast-forward push succeeded.
+      ref:
+        value: release
+        description: The branch name for checkout.
 permissions:
   contents: write
   actions: read

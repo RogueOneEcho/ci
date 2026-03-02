@@ -20,4 +20,6 @@ jobs:
     needs: fast-forward
     if: needs.fast-forward.outputs.pushed == 'true'
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.fast-forward.outputs.ref }}
     secrets: inherit
