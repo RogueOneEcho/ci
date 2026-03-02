@@ -11,6 +11,10 @@ on:
         type: string
         default: '.'
         description: Path to Docker build context.
+      grype-args:
+        type: string
+        default: '--fail-on critical'
+        description: Additional arguments passed to grype.
       sbom:
         type: string
         default: ''
@@ -205,7 +209,19 @@ jobs:
       run: >
         grype sbom:merged-sbom.cdx.json
         --output table
-        --fail-on critical
+        ${{ inputs.grype-args }}
+        --file grype.txt
+
+    - name: Update summary
+      if: always()
+      run: |
+        {
+          echo '## Grype ${{ matrix.arch }}'
+          echo '```'
+          cat grype.txt
+          echo '```'
+          echo ''
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Get image digest
       id: digest
