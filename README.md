@@ -50,15 +50,6 @@ Examples:
 - [`cross-platform.yml`](examples/rust-bin/cross-platform.yml) — Multi-target matrix with Docker
 - [`with-extra-jobs.yml`](examples/rust-bin/with-extra-jobs.yml) — Using version output for post-CI jobs
 
-### [`fast-forward-release.yml`](.github/workflows/fast-forward-release.yml)
-
-Fast-forward the `release` branch to a tagged commit on `main`. Validates the commit is on `main`, checks CI status, and pushes.
-
-Examples:
-
-- [`release.yml`](examples/release/release.yml) — Local wrapper
-- [`release-dispatch.yml`](examples/release/release-dispatch.yml) — Manual dispatch trigger
-
 ## Rulesets
 
 ### [`main.json`](rulesets/main.json)
