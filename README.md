@@ -65,6 +65,16 @@ Examples:
 - [`cross-platform.yml`](examples/rust-bin/cross-platform.yml) — Multi-target matrix with Docker
 - [`with-extra-jobs.yml`](examples/rust-bin/with-extra-jobs.yml) — Using version output for post-CI jobs
 
+### [`ff-release.yml`](.github/workflows/ff-release.yml)
+
+Fast-forward the `release` branch to a tagged commit on `main`. Must be dispatched on the `release` branch so that chained CI runs against `release`. Validates the commit is on `main`, has a version tag, CI has passed, and fast-forward is possible.
+
+Because `github.token` pushes don't trigger workflows, the caller must chain CI as a dependent job (see example).
+
+Examples:
+
+- [`release.yml`](examples/ff-release/release.yml) — Dispatch workflow that fast-forwards then runs CI
+
 ## Rulesets
 
 ### [`main.json`](rulesets/main.json)

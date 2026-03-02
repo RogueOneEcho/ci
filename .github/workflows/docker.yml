@@ -71,7 +71,7 @@ jobs:
         GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       run: ${{ secrets.RELEASE_SCRIPT }}
 
-    - if: github.event_name != 'push'
+    - if: startsWith(github.event_name, 'pull_request')
       run: touch /tmp/release-notes.md
 
     - run: echo "# ${{ steps.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
