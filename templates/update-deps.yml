@@ -1,0 +1,102 @@
+# Daily check for upstream image updates.
+# Expects the Dockerfile to pin a version via ARG, e.g.:
+#   ARG MYAPP_VERSION=v1.2.3
+#   FROM upstream/myapp:${MYAPP_VERSION}
+# When a new release is found, updates the ARG, commits, and triggers CI.
+# Requires GIT_CONFIG secret for commit authorship.
+name: Update Dependencies
+on:
+  schedule:
+  # Daily at midnight UTC
+  - cron: 0 0 * * *
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: write
+  packages: write
+  id-token: write
+jobs:
+  # Ensure this only runs on main
+  guard:
+    runs-on: ubuntu-24.04
+    if: github.ref_name == 'main'
+    steps:
+    - run: true
+
+  # Compare pinned version in Dockerfile against latest GitHub release
+  check:
+    needs: guard
+    runs-on: ubuntu-24.04
+    outputs:
+      latest: ${{ steps.latest.outputs.version }}
+      needs_update: ${{ steps.compare.outputs.needs_update }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Current version
+      id: current
+      run: |
+        version=$(sed -n 's/^ARG MYAPP_VERSION=//p' src/Dockerfile)
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Latest version
+      id: latest
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        version=$(gh release view --repo upstream/myapp --json tagName --jq .tagName)
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Compare
+      id: compare
+      run: |
+        if [[ "${{ steps.latest.outputs.version }}" != "${{ steps.current.outputs.version }}" ]]; then
+          echo "needs_update=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Summary
+      run: |
+        cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+        ```yaml
+        latest: ${{ steps.latest.outputs.version }}
+        current: ${{ steps.current.outputs.version }}
+        needs_update: ${{ steps.compare.outputs.needs_update }}
+        ```
+        EOF
+
+  # Update the pinned version, commit, and push
+  update:
+    needs: check
+    if: needs.check.outputs.needs_update == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Replace
+      run: sed -i "s/^ARG MYAPP_VERSION=.*/ARG MYAPP_VERSION=${{ needs.check.outputs.latest }}/" src/Dockerfile
+
+    - name: Configure
+      run: ${{ secrets.GIT_CONFIG }}
+
+    - name: List
+      run: git config --list
+
+    - name: Stage
+      run: git add src/Dockerfile
+
+    - name: Diff
+      run: git diff --staged
+
+    - name: Commit
+      run: git commit -m 'feat: update myapp to `${{ needs.check.outputs.latest }}`'
+
+    - name: Push
+      run: git push
+
+  # Build and publish the updated image
+  ci:
+    needs: update
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: main
+    secrets: inherit

@@ -17,7 +17,25 @@ ci-on-pr-approved.yml ──┼──▶ ci.yml ──▶ RogueOneEcho/ci/rust-l
 ci-on-pr-labeled.yml  ──┘
 ```
 
-## Workflows
+## CI Workflows
+
+
+### [`docker.yml`](.github/workflows/docker.yml)
+
+CI for Docker-only projects. Multi-arch builds (amd64/arm64), SBOM scanning, cosign attestation, and GHCR publishing.
+
+Used by:
+
+- [alloy](https://github.com/RogueOneEcho/alloy)
+- [backup](https://github.com/RogueOneEcho/backup)
+- [caddy-cloudflare](https://github.com/RogueOneEcho/caddy-cloudflare)
+- [preflight](https://github.com/RogueOneEcho/preflight)
+
+Examples:
+
+- [`minimal.yml`](examples/docker/minimal.yml) — Default build context
+- [`with-build-context.yml`](examples/docker/with-build-context.yml) — Custom build context subdirectory
+
 
 ### [`rust-lib.yml`](.github/workflows/rust-lib.yml)
 
@@ -36,20 +54,6 @@ Examples:
 - [`no-publish.yml`](examples/rust-lib/no-publish.yml) — Skip crates.io publish
 - [`workspace.yml`](examples/rust-lib/workspace.yml) — Workspace with multiple manifests
 
-### [`docker.yml`](.github/workflows/docker.yml)
-
-CI for Docker-only projects. Multi-arch builds (amd64/arm64), SBOM scanning, cosign attestation, and GHCR publishing.
-
-Used by:
-
-- [caddy-cloudflare](https://github.com/RogueOneEcho/caddy-cloudflare)
-- [backup](https://github.com/RogueOneEcho/backup)
-- [preflight](https://github.com/RogueOneEcho/preflight)
-
-Examples:
-
-- [`minimal.yml`](examples/docker/minimal.yml) — Default build context
-- [`with-build-context.yml`](examples/docker/with-build-context.yml) — Custom build context subdirectory
 
 ### [`rust-bin.yml`](.github/workflows/rust-bin.yml)
 
@@ -65,6 +69,10 @@ Examples:
 - [`cross-platform.yml`](examples/rust-bin/cross-platform.yml) — Multi-target matrix with Docker
 - [`with-extra-jobs.yml`](examples/rust-bin/with-extra-jobs.yml) — Using version output for post-CI jobs
 
+
+## Release and Maintenance Workflows
+
+
 ### [`ff-release.yml`](.github/workflows/ff-release.yml)
 
 Fast-forward the `release` branch to a tagged commit on `main`. Must be dispatched on the `release` branch so that chained CI runs against `release`. Validates the commit is on `main`, has a version tag, CI has passed, and fast-forward is possible.
@@ -75,20 +83,35 @@ Examples:
 
 - [`release.yml`](examples/ff-release/release.yml) — Dispatch workflow that fast-forwards then runs CI
 
+
+### [`update-deps.yml`](templates/update-deps.yml)
+
+Daily check for upstream image updates via pinned `ARG` version.
+
+Recommended pattern for keeping Docker images up to date.
+
+Not a reusable workflow — each repo copies and adapts the template for its specific upstream dependency.
+
+Adopted by:
+
+- [alloy](https://github.com/RogueOneEcho/alloy)
+- [caddy-cloudflare](https://github.com/RogueOneEcho/caddy-cloudflare)
+
+
 ## Rulesets
 
-### [`main.json`](rulesets/main.json)
+### CI
 
-Branch protection ruleset for `main`. Apply to a repo with:
+- [`ci-main.json`](rulesets/ci/ci-main.json) — Branch protection for `main`
+- [`ci-release.json`](rulesets/ci/ci-release.json) — Branch protection for `release`. No bypass — requires CI and git-tag to pass
+
+### Docker
+
+- [`docker-main.json`](rulesets/docker/docker-main.json) — Branch protection for `main`
+- [`docker-release.json`](rulesets/docker/docker-release.json) — Branch protection for `release`. No bypass — requires CI to pass
+
+Apply to a repo with:
 
 ```sh
-gh api repos/RogueOneEcho/{repo}/rulesets -X POST --input rulesets/main.json
-```
-
-### [`release.json`](rulesets/release.json)
-
-Branch protection ruleset for `release`. No bypass — requires CI and git-tag to pass (from `main`) before pushing. Apply to a repo with:
-
-```sh
-gh api repos/RogueOneEcho/{repo}/rulesets -X POST --input rulesets/release.json
+gh api repos/RogueOneEcho/{repo}/rulesets -X POST --input rulesets/{type}/{type}-{branch}.json
 ```

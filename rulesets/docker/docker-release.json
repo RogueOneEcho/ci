@@ -1,0 +1,52 @@
+{
+  "name": "release",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/heads/release"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "creation"
+    },
+    {
+      "type": "required_linear_history"
+    },
+    {
+      "type": "required_signatures"
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          {
+            "context": "ci / ci / docker-build (ubuntu-24.04, amd64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "ci / ci / docker-build (ubuntu-24.04-arm, arm64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "ci / ci / git-tag",
+            "integration_id": 15368
+          }
+        ]
+      }
+    }
+  ],
+  "bypass_actors": []
+}
