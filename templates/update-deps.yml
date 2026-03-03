@@ -88,7 +88,8 @@ jobs:
       run: git diff --staged
 
     - name: Commit
-      run: git commit -m 'feat: update myapp to `${{ needs.check.outputs.latest }}`'
+      run: |
+        git commit -m 'feat: update myapp to `${{ needs.check.outputs.latest }}`'
 
     - name: Push
       run: git push
