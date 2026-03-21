@@ -253,6 +253,8 @@ jobs:
     needs:
     - release
     - cargo-build
+    env:
+      HAS_GIT_CONFIG: ${{ secrets.GIT_CONFIG != '' }}
     steps:
 
     - uses: actions/checkout@v6
@@ -262,12 +264,18 @@ jobs:
         fetch-tags: true
 
     - name: git config
-      run: ${{ secrets.GIT_CONFIG || 'true' }}
+      if: env.HAS_GIT_CONFIG == 'true'
+      run: ${{ secrets.GIT_CONFIG }}
 
     - run: git config --list
 
-    - name: git tag
+    - name: git tag -m
+      if: env.HAS_GIT_CONFIG == 'true'
       run: git tag -m "v${{ needs.release.outputs.version }}" "v${{ needs.release.outputs.version }}"
+
+    - name: git tag
+      if: env.HAS_GIT_CONFIG != 'true'
+      run: git tag "v${{ needs.release.outputs.version }}"
 
     - name: git push
       run: git push origin "v${{ needs.release.outputs.version }}"
