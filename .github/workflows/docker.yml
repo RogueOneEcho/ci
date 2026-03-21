@@ -82,9 +82,9 @@ jobs:
     - if: startsWith(github.event_name, 'pull_request')
       run: touch /tmp/release-notes.md
 
-    - run: echo "# ${{ steps.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+    - run: echo "# ${{ steps.release.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
 
-    - run: cat /tmp/release-notes.md >> $GITHUB_STEP_SUMMARY
+    - run: cat /tmp/release-notes.md >> "$GITHUB_STEP_SUMMARY"
 
     - uses: actions/upload-artifact@v7
       with:
@@ -126,7 +126,7 @@ jobs:
         key: buildx-${{ matrix.arch }}-${{ github.run_number }}
         restore-keys: buildx-${{ matrix.arch }}-
 
-    - run: echo $GH_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - run: echo "$GH_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -189,11 +189,11 @@ jobs:
       with:
         ref: ${{ inputs.ref }}
 
-    - run: echo $GH_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - run: echo "$GH_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - run: echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+    - run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
 
     - run: /home/linuxbrew/.linuxbrew/bin/brew install syft grype cosign CycloneDX/cyclonedx/cyclonedx-cli
 
@@ -266,7 +266,7 @@ jobs:
     - docker-scan
     steps:
 
-    - run: echo $GH_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - run: echo "$GH_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
