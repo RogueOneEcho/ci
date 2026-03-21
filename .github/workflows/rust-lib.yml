@@ -86,7 +86,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
         fetch-depth: 0
@@ -105,7 +105,7 @@ jobs:
 
     - run: cat /tmp/release-notes.md >> $GITHUB_STEP_SUMMARY
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: release-notes.md
         path: /tmp/release-notes.md
@@ -118,7 +118,7 @@ jobs:
 
     - run: git --no-pager diff --color
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: cargo-manifests
         path: ${{ inputs.cargo-manifests }}
@@ -136,13 +136,13 @@ jobs:
     - release
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
 
     - name: Restore cargo cache
       id: cache-cargo
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         key: cargo-${{ github.run_number }}
         restore-keys: cargo-
@@ -153,7 +153,7 @@ jobs:
           ~/.cargo/git/db/
           target/
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         name: cargo-manifests
 
@@ -198,7 +198,7 @@ jobs:
 
     - name: Save cargo cache
       if: github.ref_name == 'main'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         key: ${{ steps.cache-cargo.outputs.cache-primary-key }}
         path: |
@@ -230,11 +230,11 @@ jobs:
     - cargo-build
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         name: cargo-manifests
 
@@ -255,7 +255,7 @@ jobs:
     - cargo-build
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
         fetch-depth: 0
@@ -283,11 +283,11 @@ jobs:
     - cargo-build
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         name: release-notes.md
 

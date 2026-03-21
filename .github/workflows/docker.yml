@@ -67,7 +67,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
         fetch-depth: 0
@@ -86,7 +86,7 @@ jobs:
 
     - run: cat /tmp/release-notes.md >> $GITHUB_STEP_SUMMARY
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: release-notes.md
         path: /tmp/release-notes.md
@@ -114,13 +114,13 @@ jobs:
           arch: arm64
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
 
     - name: Restore buildx cache
       id: cache-buildx
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: /tmp/.buildx-cache
         key: buildx-${{ matrix.arch }}-${{ github.run_number }}
@@ -157,7 +157,7 @@ jobs:
 
     - name: Save buildx cache
       if: github.ref_name == 'main'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         path: /tmp/.buildx-cache
         key: ${{ steps.cache-buildx.outputs.cache-primary-key }}
@@ -185,7 +185,7 @@ jobs:
       IMAGE: ghcr.io/${{ inputs.docker-image }}:${{ needs.release.outputs.version }}-${{ matrix.arch }}
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
 
@@ -249,7 +249,7 @@ jobs:
         --yes
         ghcr.io/${{ inputs.docker-image }}@${{ steps.digest.outputs.digest }}
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: sbom-${{ matrix.arch }}
         path: merged-sbom.cdx.json
@@ -302,7 +302,7 @@ jobs:
     - docker-release
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
         fetch-depth: 0
@@ -330,11 +330,11 @@ jobs:
     - docker-release
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref }}
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         name: release-notes.md
 

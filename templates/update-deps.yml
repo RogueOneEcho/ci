@@ -31,7 +31,7 @@ jobs:
       latest: ${{ steps.latest.outputs.version }}
       needs_update: ${{ steps.compare.outputs.needs_update }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Current version
       id: current
@@ -70,7 +70,7 @@ jobs:
     if: needs.check.outputs.needs_update == 'true'
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Replace
       run: sed -i "s/^ARG MYAPP_VERSION=.*/ARG MYAPP_VERSION=${{ needs.check.outputs.latest }}/" src/Dockerfile
