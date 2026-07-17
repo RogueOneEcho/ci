@@ -88,14 +88,16 @@ Examples:
 
 Daily check for upstream image updates via pinned `ARG` version.
 
-Recommended pattern for keeping Docker images up to date.
+Recommended pattern for keeping Docker images up to date. Docker Hub tags are the default source of truth; the check picks the highest semver and only bumps forward, never to an older version.
 
 Not a reusable workflow — each repo copies and adapts the template for its specific upstream dependency.
 
 Adopted by:
 
-- [alloy](https://github.com/RogueOneEcho/alloy)
-- [caddy-cloudflare](https://github.com/RogueOneEcho/caddy-cloudflare)
+- [alloy](https://github.com/RogueOneEcho/alloy) — `grafana/alloy` Docker Hub tags. Tags carry a `v` prefix, unlike the other images
+- [backup](https://github.com/RogueOneEcho/backup) — `library/alpine` Docker Hub tags
+- [caddy-cloudflare](https://github.com/RogueOneEcho/caddy-cloudflare) — `library/caddy` Docker Hub tags, plus the `caddy-dns/cloudflare` plugin via GitHub tags. The plugin is a Go module built with `xcaddy`, not an image, so it has no Docker Hub tag
+- [preflight](https://github.com/RogueOneEcho/preflight) — `library/alpine` Docker Hub tags
 
 
 ## Rulesets

@@ -23,7 +23,7 @@ jobs:
     steps:
     - run: true
 
-  # Compare pinned version in Dockerfile against latest GitHub release
+  # Compare pinned version in Dockerfile against the latest Docker Hub tag
   check:
     needs: guard
     runs-on: ubuntu-24.04
@@ -39,24 +39,38 @@ jobs:
         version=$(sed -n 's/^ARG MYAPP_VERSION=//p' src/Dockerfile)
         echo "version=$version" >> "$GITHUB_OUTPUT"
 
+    # Docker Hub tags are the source of truth for base images. Select the
+    # highest semver rather than the most recently pushed tag: upstreams
+    # maintain several release branches at once, so `last_updated` order can
+    # surface an older branch's patch. Adjust `library/myapp` and the regex
+    # (some images prefix tags with `v`) per dependency.
     - name: Latest version
       id: latest
-      env:
-        GH_TOKEN: ${{ github.token }}
       run: |
-        version=$(gh release view --repo upstream/myapp --json tagName --jq .tagName)
+        version=$(curl -s "https://hub.docker.com/v2/repositories/library/myapp/tags?page_size=100&ordering=last_updated" | jq -r '[.results[].name | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(split(".") | map(tonumber)) | last')
         echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    # Variant for deps published only as GitHub releases or Go modules (no
+    # image), e.g. a caddy plugin. Swap the step above for:
+    #   env:
+    #     GH_TOKEN: ${{ github.token }}
+    #   run: |
+    #     version=$(gh api repos/OWNER/REPO/tags --jq '[.[].name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | last')
+    #     echo "version=$version" >> "$GITHUB_OUTPUT"
 
     - name: Compare
       id: compare
       run: |
-        if [[ "${{ steps.latest.outputs.version }}" != "${{ steps.current.outputs.version }}" ]]; then
+        latest='${{ steps.latest.outputs.version }}'
+        current='${{ steps.current.outputs.version }}'
+        highest=$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)
+        if [[ "$latest" != "$current" && "$highest" == "$latest" ]]; then
           echo "needs_update=true" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Summary
       run: |
-        cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+        cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
         ```yaml
         latest: ${{ steps.latest.outputs.version }}
         current: ${{ steps.current.outputs.version }}
