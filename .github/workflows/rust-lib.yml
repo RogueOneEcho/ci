@@ -110,6 +110,9 @@ jobs:
         name: release-notes.md
         path: /tmp/release-notes.md
 
+    - run: /home/linuxbrew/.linuxbrew/bin/brew update
+      if: steps.release.outputs.version != ''
+
     - run: /home/linuxbrew/.linuxbrew/bin/brew install cargo-edit
       if: steps.release.outputs.version != ''
 

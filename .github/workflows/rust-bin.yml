@@ -168,6 +168,9 @@ jobs:
         name: release-notes.md
         path: /tmp/release-notes.md
 
+    - run: /home/linuxbrew/.linuxbrew/bin/brew update
+      if: steps.release.outputs.version != ''
+
     - run: /home/linuxbrew/.linuxbrew/bin/brew install cargo-edit
       if: steps.release.outputs.version != ''
 
@@ -228,6 +231,8 @@ jobs:
 
     - if: contains(matrix.os, 'ubuntu')
       run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+
+    - run: brew update
 
     - if: contains(matrix.os, 'ubuntu')
       run: sudo apt-get update
@@ -551,6 +556,8 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+
+    - run: /home/linuxbrew/.linuxbrew/bin/brew update
 
     - run: /home/linuxbrew/.linuxbrew/bin/brew install syft grype cosign CycloneDX/cyclonedx/cyclonedx-cli
 

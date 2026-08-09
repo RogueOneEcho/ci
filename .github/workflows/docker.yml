@@ -195,6 +195,8 @@ jobs:
 
     - run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
 
+    - run: /home/linuxbrew/.linuxbrew/bin/brew update
+
     - run: /home/linuxbrew/.linuxbrew/bin/brew install syft grype cosign CycloneDX/cyclonedx/cyclonedx-cli
 
     - name: Generate SBOM
