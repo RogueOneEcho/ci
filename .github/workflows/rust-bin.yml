@@ -14,9 +14,11 @@ on:
           JSON array of build targets.
 
           Each object has:
-          - os: Runner OS (e.g. ubuntu-24.04, macos-15)
+          - os: Runner OS (e.g. ubuntu-24.04, macos-15, windows-2025)
           - target: Rust target triple (e.g. x86_64-unknown-linux-gnu)
           - test: Whether to run tests on this target (optional, default false)
+
+          Windows targets are packaged as .zip, all others as .tar.xz
       cargo-manifests:
         type: string
         default: |
@@ -232,7 +234,8 @@ jobs:
     - if: contains(matrix.os, 'ubuntu')
       run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
 
-    - run: brew update
+    - if: contains(matrix.os, 'windows') == false
+      run: brew update
 
     - if: contains(matrix.os, 'ubuntu')
       run: sudo apt-get update
@@ -321,22 +324,45 @@ jobs:
       env:
         TARGET: ${{ matrix.target }}
 
-    - run: brew install cargo-auditable
+    - if: contains(matrix.os, 'windows') == false
+      run: brew install cargo-auditable
+
+    - name: Install cargo-auditable on Windows
+      if: contains(matrix.os, 'windows')
+      env:
+        GH_TOKEN: ${{ github.token }}
+        CARGO_AUDITABLE_VERSION: v0.7.7
+        CARGO_AUDITABLE_SHA256: 717ba2d3ed7997c501e9987ee7c94bebf9d7219b18b185a03009420ec7029c7d
+      run: |
+        gh release download "$CARGO_AUDITABLE_VERSION" -R rust-secure-code/cargo-auditable -p cargo-auditable-x86_64-pc-windows-msvc.zip
+        echo "$CARGO_AUDITABLE_SHA256  cargo-auditable-x86_64-pc-windows-msvc.zip" | sha256sum --check
+        7z e cargo-auditable-x86_64-pc-windows-msvc.zip cargo-auditable.exe
+        mv cargo-auditable.exe ~/.cargo/bin/
+        rm cargo-auditable-x86_64-pc-windows-msvc.zip
 
     - run: cargo auditable build --release --locked --target ${{ matrix.target }} --bins
 
     - run: mkdir artifacts
 
     - name: Package binary as tar.xz
+      if: contains(matrix.os, 'windows') == false
       run: |
         cp target/${{ matrix.target }}/release/${{ inputs.binary-name }} artifacts/${{ inputs.binary-name }}
         tar -cJf artifacts/${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.tar.xz \
           -C artifacts ${{ inputs.binary-name }}
 
+    - name: Package binary as zip
+      if: contains(matrix.os, 'windows')
+      working-directory: artifacts
+      run: |
+        cp ../target/${{ matrix.target }}/release/${{ inputs.binary-name }}.exe ${{ inputs.binary-name }}.exe
+        7z a ${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.zip \
+          ${{ inputs.binary-name }}.exe
+
     - uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}
-        path: artifacts/${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.tar.xz
+        path: artifacts/${{ inputs.binary-name }}-${{ needs.release.outputs.version }}-${{ matrix.target }}.${{ contains(matrix.os, 'windows') && 'zip' || 'tar.xz' }}
 
     - run: rm -rf artifacts
 
